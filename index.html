@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Greater Cincinnati Memory Map</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root{--bg:#0a0d12;--panel:#10151d;--line:#2b3544;--text:#f4f7fb;--muted:#9aa7b6}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,Arial,sans-serif}button,input,select{font:inherit}
+.app{display:grid;grid-template-columns:330px 1fr;min-height:100vh}.side{padding:18px;background:#0f141c;border-right:1px solid var(--line);overflow:auto}.brand{font-weight:850;font-size:21px}.sub{font-size:13px;line-height:1.45;color:var(--muted);margin:5px 0 14px}.section{border-top:1px solid var(--line);padding-top:13px;margin-top:13px}.section h2{margin:0 0 8px;font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:#b8c3d0}
+select,input{width:100%;padding:10px;background:#0a1017;color:var(--text);border:1px solid #344052;border-radius:10px}.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.btn{padding:9px 11px;border-radius:10px;border:1px solid #344052;background:#16202b;color:var(--text);cursor:pointer}.btn.primary{background:#eef3ff;color:#111822;border-color:#eef3ff;font-weight:750}.check{display:flex;gap:8px;align-items:center;font-size:13px;margin:7px 0}.legend{display:grid;gap:6px;margin-top:9px}.legend div{display:flex;align-items:center;gap:7px;font-size:12px;color:#c6d0dc}.sw{width:12px;height:12px;border-radius:3px;border:1px solid #ffffff55}.mapwrap{position:relative;min-width:0}#map{height:100vh;background:#0b1118}.hud{position:absolute;z-index:600;left:14px;top:14px;background:#0c1118e8;border:1px solid var(--line);border-radius:12px;padding:9px 11px;pointer-events:none}.hud b{font-size:13px}.hud span{font-size:11px;color:var(--muted)}
+.infoTitle{font-size:20px;font-weight:850}.meta{font-size:13px;line-height:1.5;color:#acb7c5}.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.chip{font-size:11px;padding:5px 7px;border:1px solid #344052;border-radius:999px;background:#111923}.quiz{padding:10px;border:1px solid #293545;background:#0c121a;border-radius:11px}.quizTarget{font-size:21px;font-weight:850;margin:5px 0 8px}.label{background:#0a0f16d9;color:#fff;border:1px solid #ffffff55;border-radius:6px;box-shadow:none;padding:2px 4px;font-size:10px;font-weight:750}.label:before{display:none}
+@media(max-width:850px){.app{grid-template-columns:1fr;grid-template-rows:auto 68vh}.side{border-right:0;border-bottom:1px solid var(--line)}#map{height:68vh}}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="side">
+<div class="brand">Greater Cincinnati Memory Map ✦</div>
+<div class="sub">Learn Cincinnati as a connected system, from the city neighborhoods out to Fairfield, West Chester, Mason, Blue Ash, Loveland and Batavia.</div>
+
+<div class="section"><h2>Color by</h2>
+<select id="mode">
+<option value="slang">Local slang / shorthand</option>
+<option value="regions">Mental regions</option>
+<option value="distance">Distance from Downtown</option>
+<option value="direction">Direction from Downtown</option>
+<option value="progress">My learning progress</option>
+</select>
+<div id="slangWrap" style="margin-top:8px"><select id="slangFocus"><option value="all">Show all slang regions</option></select></div>
+<div id="legend" class="legend"></div><div id="note" class="sub"></div></div>
+
+<div class="section"><h2>Find a place</h2>
+<input id="search" placeholder="Try Westwood, Blue Ash, Mason…" autocomplete="off">
+<div class="row"><button id="find" class="btn">Find</button><button id="fit" class="btn">Fit Greater Cincy</button></div></div>
+
+<div class="section"><h2>Layers</h2>
+<label class="check"><input id="hoodLabels" type="checkbox" checked> Cincinnati neighborhood labels</label>
+<label class="check"><input id="metroLabels" type="checkbox" checked> Greater Cincy place labels</label>
+<label class="check"><input id="metroBounds" type="checkbox" checked> suburb / city boundaries</label>
+<label class="check"><input id="anchors" type="checkbox" checked> memory anchors</label>
+</div>
+
+<div class="section"><h2>Selected place</h2><div id="info" class="meta">Click any neighborhood or suburb to see how it fits into the larger Cincinnati picture.</div></div>
+
+<div class="section"><h2>Memory quiz</h2><div class="quiz">
+<select id="quizScope"><option value="hood">Cincinnati neighborhoods</option><option value="metro">Greater Cincy suburbs</option></select>
+<div id="quizTarget" class="quizTarget">Press Start</div>
+<div class="row"><button id="nextQuiz" class="btn primary">Start / Next</button><button id="reveal" class="btn">Reveal</button></div>
+<div id="quizMsg" class="sub"></div>
+</div></div>
+
+<div class="section"><h2>Learning status</h2><div class="row"><button id="learning" class="btn">◐ Learning</button><button id="learned" class="btn">✓ Learned</button><button id="clearStatus" class="btn">Clear</button></div></div>
+
+<div class="sub" style="margin-top:16px">Slang regions are intentionally fuzzy local shorthand, not official boundaries. Cincinnati neighborhood polygons are from Code for America; municipal boundaries are from Ohio GIS; West Chester comes from Butler County GIS. Base map © OpenStreetMap contributors.</div>
+</aside>
+<main class="mapwrap"><div class="hud"><b id="hudTitle">Local slang / shorthand</b><br><span>Tap a place • zoom to learn relationships</span></div><div id="map"></div></main>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(()=>{
+const D={lat:39.1031,lng:-84.5120};
+const B=L.latLngBounds([38.96,-84.78],[39.43,-84.05]);
+const HOODS="https://cdn.jsdelivr.net/gh/codeforamerica/click_that_hood@48ba05ad/public/data/cincinnati.geojson";
+const anchors=[
+{name:"Downtown",lat:39.1031,lng:-84.5120},{name:"UC / Clifton",lat:39.1329,lng:-84.5150},{name:"Westwood",lat:39.1498,lng:-84.5994},
+{name:"Forest Park",lat:39.2903,lng:-84.5041},{name:"Fairfield",lat:39.3459,lng:-84.5605},{name:"West Chester",lat:39.3320,lng:-84.4170},
+{name:"Blue Ash",lat:39.2320,lng:-84.3783},{name:"Mason",lat:39.3601,lng:-84.3099},{name:"Loveland",lat:39.2689,lng:-84.2638},
+{name:"Batavia",lat:39.0770,lng:-84.1769},{name:"Eastgate",lat:39.1017,lng:-84.2697},{name:"Kenwood",lat:39.2023,lng:-84.3808}
+];
+const colors={"West Side":"#ee8b8b","East Side":"#78bdf2","Downtown / OTR":"#efc86f","Uptown":"#bb91ef","Central / Inner North":"#8fd4b0","Tri-County":"#f3a66f","Kenwood / Blue Ash":"#7ed6d0","North Cincy":"#8cb0f2","Northwest burbs":"#d08be8","Eastgate / Clermont":"#9ad16f","Outer / Other":"#8793a3"};
+let mode="slang",focus="all",hoods=[],metros=[],hoodLayer=null,metroLayer=null,labelLayer=L.layerGroup(),metroLabelLayer=L.layerGroup(),anchorLayer=L.layerGroup(),selected=null,quiz=null,progress=JSON.parse(localStorage.getItem("cincyProgress")||"{}");
+const map=L.map("map",{zoomControl:true,minZoom:8,maxZoom:16}).setView([39.19,-84.42],10);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap contributors"}).addTo(map);
+function c(f){try{const x=L.geoJSON(f).getBounds().getCenter();return{lat:x.lat,lng:x.lng}}catch{return D}}
+function dist(a,b){const R=3958.8,p1=a.lat*Math.PI/180,p2=b.lat*Math.PI/180,dp=(b.lat-a.lat)*Math.PI/180,dl=(b.lng-a.lng)*Math.PI/180,s=Math.sin(dp/2)**2+Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2;return 2*R*Math.asin(Math.sqrt(s))}
+function bearing(a,b){const p1=a.lat*Math.PI/180,p2=b.lat*Math.PI/180,dl=(b.lng-a.lng)*Math.PI/180;return(Math.atan2(Math.sin(dl)*Math.cos(p2),Math.cos(p1)*Math.sin(p2)-Math.sin(p1)*Math.cos(p2)*Math.cos(dl))*180/Math.PI+360)%360}
+function dir(a){return["N","NE","E","SE","S","SW","W","NW"][Math.round(a/45)%8]}
+function slang(p,n=""){
+ const x=n.toLowerCase(),lat=p.lat,lng=p.lng;
+ if(x.includes("downtown")||x.includes("over-the-rhine")||x==="otr")return"Downtown / OTR";
+ if(["clifton","cuf","corryville","avondale","mount auburn"].some(k=>x.includes(k)))return"Uptown";
+ if(x.includes("westwood")||x.includes("price hill")||x.includes("delhi")||x.includes("cheviot")||lng<-84.55&&lat<39.24)return"West Side";
+ if(x.includes("fairfield")||x.includes("forest park")||x.includes("springdale")||lng<-84.47&&lat>39.25)return"Northwest burbs";
+ if(x.includes("west chester")||x.includes("sharonville")||x.includes("tri-county"))return"Tri-County";
+ if(x.includes("mason")||x.includes("loveland")||lat>39.29&&lng>-84.42)return"North Cincy";
+ if(x.includes("blue ash")||x.includes("kenwood")||x.includes("sycamore"))return"Kenwood / Blue Ash";
+ if(x.includes("batavia")||x.includes("eastgate")||lng>-84.31)return"Eastgate / Clermont";
+ if(lng>-84.48&&lat<39.24)return"East Side";
+ if(lat>39.16)return"Central / Inner North";
+ return"Outer / Other";
+}
+function region(p){const d=dist(D,p),b=dir(bearing(D,p));if(d<2.3)return"Urban core";if(p.lat>39.25)return"Northern ring";if(p.lng<-84.55)return"West Cincinnati";if(p.lng>-84.40)return"East Cincinnati";return b+" inner ring"}
+function distBand(p){const d=dist(D,p);return d<3?"0–3 mi":d<7?"3–7 mi":d<12?"7–12 mi":d<18?"12–18 mi":"18+ mi"}
+function color(f){
+ const p=f._c,n=f._name,s=slang(p,n);if(mode==="slang")return colors[s]||"#8894a3";
+ if(mode==="regions"){const r=region(p);const m={"Urban core":"#efc86f","Northern ring":"#8cb0f2","West Cincinnati":"#ee8b8b","East Cincinnati":"#78bdf2"};return m[r]||"#9d8de3"}
+ if(mode==="distance"){return{"0–3 mi":"#efc86f","3–7 mi":"#84d0a6","7–12 mi":"#7eb8ef","12–18 mi":"#a690e9","18+ mi":"#e58cae"}[distBand(p)]}
+ if(mode==="direction"){return{"N":"#86b8ef","NE":"#8fd2b2","E":"#e5c36f","SE":"#e99776","S":"#d88ea2","SW":"#c08fe6","W":"#ef8b8b","NW":"#8bb7d8"}[dir(bearing(D,p))]}
+ return progress[n]==="learned"?"#6fd39c":progress[n]==="learning"?"#f0c96f":"#687486";
+}
+function style(f){const fade=mode==="slang"&&focus!=="all"&&slang(f._c,f._name)!==focus;return{color:f._kind==="metro"?"#cbd6e5":"#485567",weight:f._kind==="metro"?2:1,fillColor:color(f),fillOpacity:fade?.07:(f._kind==="metro"?.23:.56),dashArray:f._kind==="metro"?"5 4":null}}
+function all(){return hoods.concat(metros)}
+function showInfo(f){
+ selected=f;const p=f._c,d=dist(D,p).toFixed(1),s=slang(p,f._name),r=region(p),dr=dir(bearing(D,p));
+ document.getElementById("info").innerHTML='<div class="infoTitle">'+f._name+'</div><div class="meta">'+d+' mi '+dr+' of Downtown<br>Local shorthand: <b>'+s+'</b><br>Mental region: '+r+'</div><div class="chips"><span class="chip">'+distBand(p)+'</span><span class="chip">'+(f._kind==="metro"?"suburb / municipality":"Cincinnati neighborhood")+'</span></div>';
+ if(quiz&&quiz._name===f._name){document.getElementById("quizMsg").textContent="✓ Correct";quiz=null}
+}
+function bind(f,l){l.on("click",()=>showInfo(f));l.bindTooltip(f._name,{sticky:true});}
+function redraw(){if(hoodLayer)hoodLayer.setStyle(style);if(metroLayer)metroLayer.setStyle(style);legend();document.getElementById("slangWrap").style.display=mode==="slang"?"block":"none";document.getElementById("hudTitle").textContent=document.querySelector('#mode option:checked').textContent}
+function legend(){let vals;if(mode==="slang")vals=Object.keys(colors);else if(mode==="distance")vals=["0–3 mi","3–7 mi","7–12 mi","12–18 mi","18+ mi"];else if(mode==="direction")vals=["N","NE","E","SE","S","SW","W","NW"];else if(mode==="progress")vals=["learned","learning","not studied"];else vals=["Urban core","West Cincinnati","East Cincinnati","Northern ring","Inner ring"];document.getElementById("legend").innerHTML=vals.map(v=>'<div><span class="sw" style="background:'+(mode==="slang"?colors[v]:mode==="progress"?(v==="learned"?"#6fd39c":v==="learning"?"#f0c96f":"#687486"):"#9aa8bd")+'"></span>'+v+'</div>').join("");document.getElementById("note").textContent=mode==="slang"?"Local shorthand is fuzzy on purpose. Cincinnatians disagree about exact East/West boundaries, especially farther north.":""}
+function labels(){
+ labelLayer.clearLayers();if(!document.getElementById("hoodLabels").checked||map.getZoom()<11)return;hoods.forEach(f=>L.marker([f._c.lat,f._c.lng],{interactive:false,icon:L.divIcon({className:"label",html:f._name,iconSize:null})}).addTo(labelLayer));labelLayer.addTo(map)
+}
+function metroLabels(){
+ metroLabelLayer.clearLayers();if(!document.getElementById("metroLabels").checked)return;anchors.filter(a=>!["Downtown","UC / Clifton","Westwood","Eastgate","Kenwood"].includes(a.name)).forEach(a=>L.marker([a.lat,a.lng],{interactive:false,icon:L.divIcon({className:"label",html:a.name,iconSize:null})}).addTo(metroLabelLayer));metroLabelLayer.addTo(map)
+}
+function anchorsDraw(){
+ anchorLayer.clearLayers();if(!document.getElementById("anchors").checked)return;anchors.forEach(a=>L.circleMarker([a.lat,a.lng],{radius:4,color:"#fff",weight:1,fillColor:"#111",fillOpacity:.9}).bindTooltip(a.name).on("click",()=>{const f={_name:a.name,_c:a,_kind:"anchor"};showInfo(f)}).addTo(anchorLayer));anchorLayer.addTo(map)
+}
+function find(){
+ const q=document.getElementById("search").value.trim().toLowerCase();if(!q)return;const f=all().find(x=>x._name.toLowerCase()===q)||all().find(x=>x._name.toLowerCase().includes(q));if(f){showInfo(f);map.setView([f._c.lat,f._c.lng],f._kind==="metro"?11:13);return}const a=anchors.find(x=>x.name.toLowerCase().includes(q));if(a){showInfo({_name:a.name,_c:a,_kind:"anchor"});map.setView([a.lat,a.lng],11)}}
+function quizNext(){const pool=document.getElementById("quizScope").value==="metro"?metros:hoods;if(!pool.length)return;quiz=pool[Math.floor(Math.random()*pool.length)];document.getElementById("quizTarget").textContent=quiz._name;document.getElementById("quizMsg").textContent="Find it without search."}
+document.getElementById("mode").onchange=e=>{mode=e.target.value;redraw()};
+document.getElementById("slangFocus").onchange=e=>{focus=e.target.value;redraw()};
+Object.keys(colors).forEach(x=>document.getElementById("slangFocus").insertAdjacentHTML("beforeend",'<option>'+x+'</option>'));
+document.getElementById("find").onclick=find;document.getElementById("search").onkeydown=e=>{if(e.key==="Enter")find()};document.getElementById("fit").onclick=()=>map.fitBounds(B,{padding:[15,15]});
+document.getElementById("hoodLabels").onchange=labels;document.getElementById("metroLabels").onchange=metroLabels;
+document.getElementById("metroBounds").onchange=e=>{if(!metroLayer)return;e.target.checked?metroLayer.addTo(map):map.removeLayer(metroLayer)};
+document.getElementById("anchors").onchange=anchorsDraw;document.getElementById("nextQuiz").onclick=quizNext;
+document.getElementById("reveal").onclick=()=>{if(quiz){showInfo(quiz);map.setView([quiz._c.lat,quiz._c.lng],quiz._kind==="metro"?11:13)}};
+document.getElementById("learning").onclick=()=>{if(selected){progress[selected._name]="learning";localStorage.setItem("cincyProgress",JSON.stringify(progress));redraw()}};
+document.getElementById("learned").onclick=()=>{if(selected){progress[selected._name]="learned";localStorage.setItem("cincyProgress",JSON.stringify(progress));redraw()}};
+document.getElementById("clearStatus").onclick=()=>{if(selected){delete progress[selected._name];localStorage.setItem("cincyProgress",JSON.stringify(progress));redraw()}};
+map.on("zoomend",labels);map.fitBounds(B,{padding:[15,15]});legend();metroLabels();anchorsDraw();
+
+fetch(HOODS).then(r=>r.json()).then(g=>{
+ hoods=(g.features||[]).map(f=>{f._name=(f.properties&&Object.values(f.properties).find(v=>typeof v==="string"))||"Neighborhood";f._c=c(f);f._kind="hood";return f});
+ hoodLayer=L.geoJSON({type:"FeatureCollection",features:hoods},{style,onEachFeature:bind}).addTo(map);labels();
+}).catch(()=>document.getElementById("info").textContent="Neighborhood layer could not load.");
+
+const mp=new URLSearchParams({where:"1=1",geometry:"-84.78,38.96,-84.05,39.43",geometryType:"esriGeometryEnvelope",inSR:"4326",spatialRel:"esriSpatialRelIntersects",outFields:"municipality",outSR:"4326",returnGeometry:"true",f:"geojson"});
+fetch("https://maps.ohio.gov/arcgis/rest/services/Hosted/Ohio_Municipal_Boundaries/FeatureServer/0/query?"+mp).then(r=>r.json()).then(g=>{
+ metros=(g.features||[]).map(f=>{f._name=(f.properties&&f.properties.municipality)||"Municipality";f._c=c(f);f._kind="metro";return f}).filter(f=>B.contains([f._c.lat,f._c.lng])&&f._name!=="Cincinnati");
+ metroLayer=L.geoJSON({type:"FeatureCollection",features:metros},{style,onEachFeature:bind}).addTo(map);
+}).catch(()=>{});
+})();
+</script>
+</body></html>
