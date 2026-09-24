@@ -10,7 +10,7 @@
 *{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,Arial,sans-serif}button,input,select{font:inherit}
 .app{display:grid;grid-template-columns:330px 1fr;min-height:100vh}.side{padding:18px;background:#0f141c;border-right:1px solid var(--line);overflow:auto}.brand{font-weight:850;font-size:21px}.sub{font-size:13px;line-height:1.45;color:var(--muted);margin:5px 0 14px}.section{border-top:1px solid var(--line);padding-top:13px;margin-top:13px}.section h2{margin:0 0 8px;font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:#b8c3d0}
 select,input{width:100%;padding:10px;background:#0a1017;color:var(--text);border:1px solid #344052;border-radius:10px}.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.btn{padding:9px 11px;border-radius:10px;border:1px solid #344052;background:#16202b;color:var(--text);cursor:pointer}.btn.primary{background:#eef3ff;color:#111822;border-color:#eef3ff;font-weight:750}.check{display:flex;gap:8px;align-items:center;font-size:13px;margin:7px 0}.legend{display:grid;gap:6px;margin-top:9px}.legend div{display:flex;align-items:center;gap:7px;font-size:12px;color:#c6d0dc}.sw{width:12px;height:12px;border-radius:3px;border:1px solid #ffffff55}.mapwrap{position:relative;min-width:0}#map{height:100vh;background:#0b1118}.hud{position:absolute;z-index:600;left:14px;top:14px;background:#0c1118e8;border:1px solid var(--line);border-radius:12px;padding:9px 11px;pointer-events:none}.hud b{font-size:13px}.hud span{font-size:11px;color:var(--muted)}
-.infoTitle{font-size:20px;font-weight:850}.meta{font-size:13px;line-height:1.5;color:#acb7c5}.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.chip{font-size:11px;padding:5px 7px;border:1px solid #344052;border-radius:999px;background:#111923}.quiz{padding:10px;border:1px solid #293545;background:#0c121a;border-radius:11px}.quizTarget{font-size:21px;font-weight:850;margin:5px 0 8px}.label{background:#0a0f16d9;color:#fff;border:1px solid #ffffff55;border-radius:6px;box-shadow:none;padding:2px 4px;font-size:10px;font-weight:750}.label:before{display:none}
+.infoTitle{font-size:20px;font-weight:850}.meta{font-size:13px;line-height:1.5;color:#acb7c5}.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.chip{font-size:11px;padding:5px 7px;border:1px solid #344052;border-radius:999px;background:#111923}.quiz{padding:10px;border:1px solid #293545;background:#0c121a;border-radius:11px}.quizTarget{font-size:21px;font-weight:850;margin:5px 0 8px}.label{background:#0a0f16d9;color:#fff;border:1px solid #ffffff55;border-radius:6px;box-shadow:none;padding:2px 4px;font-size:10px;font-weight:750}.label:before{display:none}.hoodtag{background:#160f23e8;color:#fff;border:1px solid #d7b7ff;border-radius:999px;box-shadow:0 2px 10px #0008;padding:4px 7px;font-size:11px;font-weight:850;white-space:nowrap}.hoodtag:before{display:none}
 @media(max-width:850px){.app{grid-template-columns:1fr;grid-template-rows:auto 68vh}.side{border-right:0;border-bottom:1px solid var(--line)}#map{height:68vh}}
 </style>
 </head>
@@ -40,6 +40,7 @@ select,input{width:100%;padding:10px;background:#0a1017;color:var(--text);border
 <label class="check"><input id="metroLabels" type="checkbox" checked> Greater Cincy place labels</label>
 <label class="check"><input id="metroBounds" type="checkbox" checked> suburb / city boundaries</label>
 <label class="check"><input id="anchors" type="checkbox" checked> memory anchors</label>
+<label class="check"><input id="hoodNicknames" type="checkbox"> hood nicknames / local lingo</label>
 </div>
 
 <div class="section"><h2>Selected place</h2><div id="info" class="meta">Click any neighborhood or suburb to see how it fits into the larger Cincinnati picture.</div></div>
@@ -53,7 +54,7 @@ select,input{width:100%;padding:10px;background:#0a1017;color:var(--text);border
 
 <div class="section"><h2>Learning status</h2><div class="row"><button id="learning" class="btn">◐ Learning</button><button id="learned" class="btn">✓ Learned</button><button id="clearStatus" class="btn">Clear</button></div></div>
 
-<div class="sub" style="margin-top:16px">Slang regions are intentionally fuzzy local shorthand, not official boundaries. Cincinnati neighborhood polygons are from Code for America; municipal boundaries are from Ohio GIS; West Chester comes from Butler County GIS. Base map © OpenStreetMap contributors.</div>
+<div class="sub" style="margin-top:16px">Hood nicknames and slang regions are community language, not official boundaries. Some names are historical or locally reported and may vary by generation or block. Cincinnati neighborhood polygons are from Code for America; municipal boundaries are from Ohio GIS; West Chester comes from Butler County GIS. Base map © OpenStreetMap contributors.</div>
 </aside>
 <main class="mapwrap"><div class="hud"><b id="hudTitle">Local slang / shorthand</b><br><span>Tap a place • zoom to learn relationships</span></div><div id="map"></div></main>
 </div>
@@ -70,8 +71,17 @@ const anchors=[
 {name:"Blue Ash",lat:39.2320,lng:-84.3783},{name:"Mason",lat:39.3601,lng:-84.3099},{name:"Loveland",lat:39.2689,lng:-84.2638},
 {name:"Batavia",lat:39.0770,lng:-84.1769},{name:"Eastgate",lat:39.1017,lng:-84.2697},{name:"Kenwood",lat:39.2023,lng:-84.3808}
 ];
+const hoodNicknames=[
+{nick:"The E",place:"Evanston",parent:"Evanston",confidence:"community-reported",note:"Local shorthand for Evanston; placement uses the Evanston neighborhood centroid."},
+{nick:"The T",place:"Winton Terrace",parent:"Winton Hills",confidence:"documented local usage",note:"Winton Terrace is within Winton Hills; marker uses the parent-neighborhood centroid, so placement is approximate."},
+{nick:"The Fay",place:"Villages at Roll Hill",parent:"Villages at Roll Hill",confidence:"historical / documented",note:"Formerly Fay Apartments; 'The Fay' remains a locally recognized historical name."},
+{nick:"Mad Ville",place:"Madisonville",parent:"Madisonville",confidence:"community-reported",note:"Locally reported nickname for Madisonville."},
+{nick:"2 Dub",place:"Westwood",parent:"Westwood",confidence:"community-reported",note:"Locally reported shorthand for Westwood."},
+{nick:"Brick City",place:"Winton Terrace area",parent:"Winton Hills",confidence:"community-reported",note:"Reported nickname for the Winton Terrace area; approximate placement via Winton Hills."},
+{nick:"Zone 15",place:"Lincoln Heights",parent:null,lat:39.2384,lng:-84.4555,confidence:"community-reported",note:"Locally reported nickname for Lincoln Heights; approximate public-area marker."}
+];
 const colors={"West Side":"#ee8b8b","East Side":"#78bdf2","Downtown / OTR":"#efc86f","Uptown":"#bb91ef","Central / Inner North":"#8fd4b0","Tri-County":"#f3a66f","Kenwood / Blue Ash":"#7ed6d0","North Cincy":"#8cb0f2","Northwest burbs":"#d08be8","Eastgate / Clermont":"#9ad16f","Outer / Other":"#8793a3"};
-let mode="slang",focus="all",hoods=[],metros=[],hoodLayer=null,metroLayer=null,labelLayer=L.layerGroup(),metroLabelLayer=L.layerGroup(),anchorLayer=L.layerGroup(),selected=null,quiz=null,progress=JSON.parse(localStorage.getItem("cincyProgress")||"{}");
+let mode="slang",focus="all",hoods=[],metros=[],hoodLayer=null,metroLayer=null,labelLayer=L.layerGroup(),metroLabelLayer=L.layerGroup(),anchorLayer=L.layerGroup(),hoodNicknameLayer=L.layerGroup(),selected=null,quiz=null,progress=JSON.parse(localStorage.getItem("cincyProgress")||"{}");
 const map=L.map("map",{zoomControl:true,minZoom:8,maxZoom:16}).setView([39.19,-84.42],10);
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap contributors"}).addTo(map);
 function c(f){try{const x=L.geoJSON(f).getBounds().getCenter();return{lat:x.lat,lng:x.lng}}catch{return D}}
@@ -120,6 +130,24 @@ function metroLabels(){
 function anchorsDraw(){
  anchorLayer.clearLayers();if(!document.getElementById("anchors").checked)return;anchors.forEach(a=>L.circleMarker([a.lat,a.lng],{radius:4,color:"#fff",weight:1,fillColor:"#111",fillOpacity:.9}).bindTooltip(a.name).on("click",()=>{const f={_name:a.name,_c:a,_kind:"anchor"};showInfo(f)}).addTo(anchorLayer));anchorLayer.addTo(map)
 }
+function hoodNicknamesDraw(){
+ hoodNicknameLayer.clearLayers();
+ if(!document.getElementById("hoodNicknames").checked)return;
+ hoodNicknames.forEach(h=>{
+   let p=null;
+   if(Number.isFinite(h.lat)&&Number.isFinite(h.lng))p={lat:h.lat,lng:h.lng};
+   else if(h.parent){
+     const f=hoods.find(x=>x._name.toLowerCase()===h.parent.toLowerCase())||hoods.find(x=>x._name.toLowerCase().includes(h.parent.toLowerCase()));
+     if(f)p=f._c;
+   }
+   if(!p)return;
+   const html='<div style="text-align:center"><b>'+h.nick+'</b><br><span style="font-size:10px">'+h.place+'</span></div>';
+   L.marker([p.lat,p.lng],{icon:L.divIcon({className:"hoodtag",html:html,iconSize:null})})
+    .bindPopup('<b>'+h.nick+'</b> — '+h.place+'<br><span style="color:#777">'+h.confidence+'</span><br>'+h.note)
+    .addTo(hoodNicknameLayer);
+ });
+ hoodNicknameLayer.addTo(map);
+}
 function find(){
  const q=document.getElementById("search").value.trim().toLowerCase();if(!q)return;const f=all().find(x=>x._name.toLowerCase()===q)||all().find(x=>x._name.toLowerCase().includes(q));if(f){showInfo(f);map.setView([f._c.lat,f._c.lng],f._kind==="metro"?11:13);return}const a=anchors.find(x=>x.name.toLowerCase().includes(q));if(a){showInfo({_name:a.name,_c:a,_kind:"anchor"});map.setView([a.lat,a.lng],11)}}
 function quizNext(){const pool=document.getElementById("quizScope").value==="metro"?metros:hoods;if(!pool.length)return;quiz=pool[Math.floor(Math.random()*pool.length)];document.getElementById("quizTarget").textContent=quiz._name;document.getElementById("quizMsg").textContent="Find it without search."}
@@ -129,16 +157,16 @@ Object.keys(colors).forEach(x=>document.getElementById("slangFocus").insertAdjac
 document.getElementById("find").onclick=find;document.getElementById("search").onkeydown=e=>{if(e.key==="Enter")find()};document.getElementById("fit").onclick=()=>map.fitBounds(B,{padding:[15,15]});
 document.getElementById("hoodLabels").onchange=labels;document.getElementById("metroLabels").onchange=metroLabels;
 document.getElementById("metroBounds").onchange=e=>{if(!metroLayer)return;e.target.checked?metroLayer.addTo(map):map.removeLayer(metroLayer)};
-document.getElementById("anchors").onchange=anchorsDraw;document.getElementById("nextQuiz").onclick=quizNext;
+document.getElementById("anchors").onchange=anchorsDraw;document.getElementById("hoodNicknames").onchange=hoodNicknamesDraw;document.getElementById("nextQuiz").onclick=quizNext;
 document.getElementById("reveal").onclick=()=>{if(quiz){showInfo(quiz);map.setView([quiz._c.lat,quiz._c.lng],quiz._kind==="metro"?11:13)}};
 document.getElementById("learning").onclick=()=>{if(selected){progress[selected._name]="learning";localStorage.setItem("cincyProgress",JSON.stringify(progress));redraw()}};
 document.getElementById("learned").onclick=()=>{if(selected){progress[selected._name]="learned";localStorage.setItem("cincyProgress",JSON.stringify(progress));redraw()}};
 document.getElementById("clearStatus").onclick=()=>{if(selected){delete progress[selected._name];localStorage.setItem("cincyProgress",JSON.stringify(progress));redraw()}};
-map.on("zoomend",labels);map.fitBounds(B,{padding:[15,15]});legend();metroLabels();anchorsDraw();
+map.on("zoomend",labels);map.fitBounds(B,{padding:[15,15]});legend();metroLabels();anchorsDraw();hoodNicknamesDraw();
 
 fetch(HOODS).then(r=>r.json()).then(g=>{
  hoods=(g.features||[]).map(f=>{f._name=(f.properties&&Object.values(f.properties).find(v=>typeof v==="string"))||"Neighborhood";f._c=c(f);f._kind="hood";return f});
- hoodLayer=L.geoJSON({type:"FeatureCollection",features:hoods},{style,onEachFeature:bind}).addTo(map);labels();
+ hoodLayer=L.geoJSON({type:"FeatureCollection",features:hoods},{style,onEachFeature:bind}).addTo(map);labels();hoodNicknamesDraw();
 }).catch(()=>document.getElementById("info").textContent="Neighborhood layer could not load.");
 
 const mp=new URLSearchParams({where:"1=1",geometry:"-84.78,38.96,-84.05,39.43",geometryType:"esriGeometryEnvelope",inSR:"4326",spatialRel:"esriSpatialRelIntersects",outFields:"municipality",outSR:"4326",returnGeometry:"true",f:"geojson"});
